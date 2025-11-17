@@ -1,50 +1,55 @@
 ---
-- name: Final Exam Automation with Containers
+- name: Install and Configure Containers
   hosts: all
   become: yes
   vars_files:
-    - config.yaml
+    - config.yaml  # This loads the variables from config.yaml
 
   tasks:
-
     - name: Install Docker (Debian)
       apt:
         name: docker.io
         state: present
-        update_cache: yes
-      when: ansible_os_family == "Debian"
+      when: ansible_facts['os_family'] == "Debian"
 
     - name: Install Docker (CentOS)
       yum:
         name: docker
         state: present
-      when: ansible_os_family == "RedHat"
+      when: ansible_facts['os_family'] == "RedHat"
 
-    - name: Enable and start Docker service
-      service:
+    - name: Enable and start Docker service on Debian
+      systemd:
+        name: docker.service
+        state: started
+        enabled: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Enable and start Docker service on CentOS
+      systemd:
         name: docker
         state: started
         enabled: yes
+      when: ansible_facts['os_family'] == "RedHat"
 
     - name: Run Apache container
       docker_container:
-        name: apache_service
+        name: "{{ service.name }}"
         image: "{{ service.container_image }}"
         state: started
-        restart_policy: always
         ports:
           - "{{ service.container_port }}"
-
+      
     - name: Run Prometheus container
       docker_container:
-        name: prometheus_monitor
+        name: "{{ monitoring.name }}"
         image: "{{ monitoring.container_image }}"
         state: started
-        restart_policy: always
         ports:
           - "{{ monitoring.container_port }}"
-
-    - name: Update MOTD
-      copy:
-        dest: /etc/motd
-        content: "{{ motd_message }}"
+      
+    - name: Change MOTD on all servers
+      lineinfile:
+        path: /etc/motd
+        line: "{{ motd_message }}"
+        create: yes
