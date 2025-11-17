@@ -3,7 +3,7 @@
   hosts: all
   become: yes
   vars_files:
-    - config.yaml  # This loads the variables from config.yaml
+    - config.yaml
 
   tasks:
     - name: Install Docker (Debian)
@@ -14,7 +14,7 @@
 
     - name: Install Docker (CentOS)
       yum:
-        name: docker
+        name: docker-ce
         state: present
       when: ansible_facts['os_family'] == "RedHat"
 
@@ -32,24 +32,33 @@
         enabled: yes
       when: ansible_facts['os_family'] == "RedHat"
 
-    - name: Run Apache container
+    # Set docker_host variable based on the OS family
+    - name: Set Docker host for Debian and CentOS
+      set_fact:
+        docker_host: "unix:///var/run/docker.sock"
+      when: ansible_facts['os_family'] in ["Debian", "RedHat"]
+
+    - name: Run Apache container on a different port
       docker_container:
         name: "{{ service.name }}"
         image: "{{ service.container_image }}"
         state: started
         ports:
-          - "{{ service.container_port }}"
-      
+          - "8080:80"  # Host port 8080 mapped to container port 80
+        docker_host: "unix:///var/run/docker.sock"
+
     - name: Run Prometheus container
       docker_container:
         name: "{{ monitoring.name }}"
         image: "{{ monitoring.container_image }}"
         state: started
         ports:
-          - "{{ monitoring.container_port }}"
-      
+          - "{{ monitoring.container_port }}"  # Using the port from config.yaml
+        docker_host: "{{ docker_host }}"  # Explicitly specify the Docker socket
+
     - name: Change MOTD on all servers
       lineinfile:
         path: /etc/motd
         line: "{{ motd_message }}"
         create: yes
+
