@@ -1,0 +1,50 @@
+---
+- name: Final Exam Automation with Containers
+  hosts: all
+  become: yes
+  vars_files:
+    - config.yaml
+
+  tasks:
+
+    - name: Install Docker (Debian)
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker (CentOS)
+      yum:
+        name: docker
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Enable and start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Run Apache container
+      docker_container:
+        name: apache_service
+        image: "{{ service.container_image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ service.container_port }}"
+
+    - name: Run Prometheus container
+      docker_container:
+        name: prometheus_monitor
+        image: "{{ monitoring.container_image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ monitoring.container_port }}"
+
+    - name: Update MOTD
+      copy:
+        dest: /etc/motd
+        content: "{{ motd_message }}"

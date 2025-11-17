@@ -1,0 +1,11 @@
+service:
+  name: apache
+  container_image: httpd:latest
+  container_port: "80:80"
+
+monitoring:
+  name: prometheus
+  container_image: prom/prometheus:latest
+  container_port: "9090:9090"
+
+motd_message: "Ansible Managed by vboxuser"
